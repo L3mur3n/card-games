@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chicago Poängräknare</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .player { margin-bottom: 20px; cursor: pointer; }
+        .player-name { font-weight: bold; }
+        .points { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px; }
+        .points button { 
+            flex: 1 1 auto; 
+            padding: 10px; 
+            font-size: 16px; 
+            background-color: #4CAF50; 
+            color: white; 
+            border: none; 
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .points button:hover {
+            background-color: #45a049;
+        }
+        .selected {
+            border: 2px solid #4CAF50;
+            padding: 5px;
+            border-radius: 5px;
+        }
+        .streaks { display: flex; margin-bottom: 10px; }
+        .streaks img { margin-right: 2px; }
+        .star { color: gold; }
+        @media (max-width: 600px) {
+            .points { flex-direction: column; gap: 5px; }
+            .points button { font-size: 14px; padding: 8px; }
+        }
+    </style>
+</head>
+<body>
+    <h1>Chicago Poängräknare</h1>
+    <div id="players"></div>
+    <div id="selectedPlayer" style="margin-bottom: 20px;"></div>
+    <div class="points">
+        <button onclick="addPoints('par')">Par (1p)</button>
+        <button onclick="addPoints('tvåpar')">Tvåpar (2p)</button>
+        <button onclick="addPoints('triss')">Triss (3p)</button>
+        <button onclick="addPoints('stege')">Stege (4p)</button>
+        <button onclick="addPoints('färg')">Färg (5p)</button>
+        <button onclick="addPoints('kåk')">Kåk (6p)</button>
+        <button onclick="addPoints('fyrtal')">Fyrtal (8p)</button>
+        <button onclick="addPoints('färgstege')">Färgstege (11p)</button>
+        <button onclick="addPoints('utspel')">Utspel (2p)</button>
+        <button onclick="addPoints('utspel2a')">Utspel2a (5p)</button>
+        <button onclick="addPoints('chicago')">Chicago (15p)</button>
+        <button onclick="addPoints('misslyckadChicago')">MisslyckadChicago (-15p)</button>
+        <button onclick="addPoints('royalFlush')">RoyalFlush (20p)</button>
+        <button onclick="addPoints('royalStraightFlush')">RoyalStraightFlush (winp)</button>
+        <button onclick="resetOtherPlayers()">Fyrtal (nollställ andra)</button>
+        <button onclick="undoPoints()">Ångra</button>
+    </div>
+    <br><br>
+    <button onclick="addPlayer()">Lägg till spelare</button>
+    <br><br>
+    <button onclick="resetGame()">Nollställ spelet</button>
+
+    <script>
+        const pointValues = {
+            par: 1,
+            tvåpar: 2,
+            triss: 3,
+            stege: 4,
+            färg: 5,
+            kåk: 6,
+            fyrtal: 8,
+            färgstege: 11,
+            utspel: 2,
+            utspel2a: 5,
+            chicago: 15,
+            misslyckadChicago: -15,
+            royalFlush: 20,
+            royalStraightFlush: "win"
+        };
+
+        let players = [];
+        let history = [];
+        let selectedPlayerIndex = null;
+
+        function addPlayer() {
+            const playerName = prompt("Ange spelarens namn:");
+            if (playerName) {
+                players.push({ name: playerName, score: 0, streak: 0, star: false });
+                updatePlayers();
+            }
+        }
+
+        function updatePlayers() {
+            const playersDiv = document.getElementById('players');
+            playersDiv.innerHTML = '';
+            players.forEach((player, index) => {
+                const star = player.star ? '<span class="star">★</span>' : '';
+                const playerDiv = document.createElement('div');
+                playerDiv.className = 'player' + (selectedPlayerIndex === index ? ' selected' : '');
+                playerDiv.innerHTML = `
+                    <div class="player-name">${player.name}: ${player.score} poäng ${star}</div>
+                    <div class="streaks">${generateStreaks(player.streak)}</div>
+                `;
+                playerDiv.onclick = () => selectPlayer(index);
+                playersDiv.appendChild(playerDiv);
+            });
+
+            if (selectedPlayerIndex !== null) {
+                document.getElementById('selectedPlayer').innerHTML = `Vald spelare: ${players[selectedPlayerIndex].name}`;
+            } else {
+                document.getElementById('selectedPlayer').innerHTML = 'Ingen spelare vald';
+            }
+        }
+
+        function selectPlayer(index) {
+            selectedPlayerIndex = index;
+            updatePlayers();
+        }
+
+        function generateStreaks(streak) {
+            let streakHTML = '';
+            while (streak >= 5) {
+                streakHTML += '<img src="images/5-poang.png" alt="5 poäng">';
+                streak -= 5;
+            }
+            for (let i = 0; i < streak; i++) {
+                streakHTML += '<img src="images/1-poang.png" alt="1 poäng">';
+            }
+            return streakHTML;
+        }
+
+        function addPoints(type) {
+            if (selectedPlayerIndex === null) {
+                alert('Ingen spelare vald!');
+                return;
+            }
+
+            const points = pointValues[type];
+            history.push(JSON.parse(JSON.stringify(players))); // Save a deep copy of the current state
+
+            if (points === "win") {
+                alert(`${players[selectedPlayerIndex].name} har vunnit spelet med en Royal Straight Flush!`);
+                resetGame();
+                return;
+            } else if (type === 'chicago' || type === 'misslyckadChicago') {
+                players[selectedPlayerIndex].star = true;
+            }
+
+            players[selectedPlayerIndex].score += points;
+            players[selectedPlayerIndex].streak += Math.abs(points);
+            checkWinner(selectedPlayerIndex);
+            updatePlayers();
+        }
+
+        function undoPoints() {
+            if (history.length > 0) {
+                players = history.pop(); // Restore the last state
+                updatePlayers();
+            } else {
+                alert("Ingen åtgärd att ångra!");
+            }
+        }
+
+        function resetOtherPlayers() {
+            if (selectedPlayerIndex === null) {
+                alert('Ingen spelare vald!');
+                return;
+            }
+            if (confirm("Är du säker på att du vill nollställa övriga spelare?")) {
+                players.forEach((player, index) => {
+                    if (index !== selectedPlayerIndex) {
+                        player.score = 0;
+                        player.streak = 0;
+                    }
+                });
+                updatePlayers();
+            }
+        }
+
+        function checkWinner(playerIndex) {
+            if (players[playerIndex].score >= 52) {
+                alert(`${players[playerIndex].name} har nått 52 poäng och kan vinna spelet!`);
+            }
+        }
+
+        function resetGame() {
+            players = [];
+            history = [];
+            selectedPlayerIndex = null;
+            updatePlayers();
+        }
+    </script>
+</body>
+</html>
